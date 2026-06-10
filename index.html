@@ -39,16 +39,20 @@ body{
 
 .container{
     width:min(900px,95%);
-    height:80vh;
+    height:85vh;
     display:flex;
     flex-direction:column;
 }
 
-.header{
-    text-align:center;
-    margin-bottom:10px;
-    opacity:0.85;
-    text-shadow:0 0 8px rgba(0,255,102,0.25);
+.ascii{
+    white-space: pre;
+    font-family: "Courier New", monospace;
+    font-size: 10px;
+    line-height: 10px;
+    text-align: center;
+    color: #00ff66;
+    text-shadow: 0 0 10px rgba(0,255,102,0.35);
+    margin-bottom: 10px;
 }
 
 #terminal{
@@ -56,6 +60,7 @@ body{
     overflow-y:auto;
     border:1px solid rgba(0,255,102,0.25);
     padding:12px;
+    background:#000;
     box-shadow:0 0 20px rgba(0,255,102,0.12);
 }
 
@@ -75,23 +80,15 @@ body{
     background:rgba(0,255,102,0.08);
 }
 
-.title{
-    font-weight:bold;
-}
-
-.url{
-    font-size:12px;
-    opacity:0.7;
-}
+.title{ font-weight:bold; }
+.url{ font-size:12px; opacity:0.7; }
 
 .input-line{
     display:flex;
     margin-top:10px;
 }
 
-.prompt{
-    margin-right:8px;
-}
+.prompt{ margin-right:8px; }
 
 input{
     flex:1;
@@ -119,8 +116,13 @@ input{
 
 <div class="container">
 
-<div class="header">
-TERMINAL SEARCH // LIVE ENGINE INTERFACE
+<div class="ascii">
+████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗         ███████╗███████╗ █████╗ ██████╗  ██████╗██╗  ██╗
+╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║         ██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
+   ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║         ███████╗█████╗  ███████║██████╔╝██║     ███████║
+   ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║         ╚════██║██╔══╝  ██╔══██║██╔══██╗██║     ██╔══██║
+   ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗    ███████║███████╗██║  ██║██║  ██║╚██████╗██║  ██║
+   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝    ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
 </div>
 
 <div id="terminal"></div>
@@ -131,23 +133,17 @@ TERMINAL SEARCH // LIVE ENGINE INTERFACE
 </div>
 
 <div class="footer">
-engines: brave | duckduckgo | startpage
+search &lt;query&gt; | clear | help
 </div>
 
 </div>
 
 <script>
+
+const API = "https://terminal-search.scoutvsluigi.workers.dev";
+
 const terminal = document.getElementById("terminal");
 const input = document.getElementById("cmd");
-
-let engine = "brave";
-
-/* REAL SEARCH ENGINES (direct result pages) */
-const engines = {
-    brave: (q) => `https://search.brave.com/search?q=${encodeURIComponent(q)}`,
-    duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
-    startpage: (q) => `https://www.startpage.com/sp/search?query=${encodeURIComponent(q)}`
-};
 
 function print(text){
     const div = document.createElement("div");
@@ -157,44 +153,40 @@ function print(text){
     terminal.scrollTop = terminal.scrollHeight;
 }
 
-/* REAL RESULTS SIMULATION BUT USING LIVE LINKS */
-function showResults(query){
-    print("> engine: " + engine);
-    print("> scanning index...");
-    print("> query: " + query);
-    print("");
+function addResult(title, url){
+    const div = document.createElement("div");
+    div.className = "result";
 
-    const baseUrl = engines[engine](query);
+    div.innerHTML = `
+        <div class="title">${title}</div>
+        <div class="url">${url}</div>
+    `;
 
-    // Generate clickable "real search results" that lead to actual engine results
-    const results = Array.from({length: 6}).map((_,i)=>({
-        title: `${query} — result ${i+1}`,
-        url: baseUrl + (engine === "duckduckgo" ? `&ia=web` : "")
-    }));
-
-    results.forEach(r=>{
-        const div = document.createElement("div");
-        div.className = "result";
-
-        div.innerHTML = `
-            <div class="title">${r.title}</div>
-            <div class="url">${r.url}</div>
-        `;
-
-        div.onclick = () => window.open(r.url, "_blank");
-
-        terminal.appendChild(div);
-    });
-
-    terminal.scrollTop = terminal.scrollHeight;
+    div.onclick = () => window.open(url, "_blank");
+    terminal.appendChild(div);
 }
 
-function help(){
-    print("COMMANDS:");
-    print("  search <query>");
-    print("  engine <brave|duckduckgo|startpage>");
-    print("  clear");
-    print("  help");
+async function search(query){
+    print("> scanning index...");
+    print("> " + query);
+    print("");
+
+    try {
+        const res = await fetch(`${API}/?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+
+        if(!data.results || !data.results.length){
+            print("no results found.");
+            return;
+        }
+
+        data.results.forEach(r=>{
+            addResult(r.title, r.url);
+        });
+
+    } catch(err){
+        print("ERROR: backend unreachable");
+    }
 }
 
 input.addEventListener("keydown", (e)=>{
@@ -203,33 +195,23 @@ input.addEventListener("keydown", (e)=>{
         print("> " + value);
 
         const parts = value.split(" ");
-        const cmd = parts[0].toLowerCase();
+        const cmd = parts[0];
         const args = parts.slice(1).join(" ");
 
         if(cmd === "search"){
-            if(args) showResults(args);
-            else print("ERROR: missing query");
+            if(args) search(args);
+            else print("missing query");
         }
-
-        else if(cmd === "engine"){
-            if(engines[args]){
-                engine = args;
-                print("ENGINE SET TO: " + engine);
-            } else {
-                print("UNKNOWN ENGINE");
-            }
-        }
-
         else if(cmd === "clear"){
             terminal.innerHTML = "";
         }
-
         else if(cmd === "help"){
-            help();
+            print("search <query>");
+            print("clear");
+            print("help");
         }
-
         else{
-            print("UNKNOWN COMMAND");
+            print("unknown command");
         }
 
         input.value = "";
@@ -237,7 +219,8 @@ input.addEventListener("keydown", (e)=>{
 });
 
 print("Terminal Search online.");
-print("Type 'help'");
+print("Ready.");
+
 </script>
 
 </body>
