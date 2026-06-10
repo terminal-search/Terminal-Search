@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminal Search</title>
+
+<style>
+body{
+    margin:0;
+    background:#000;
+    color:#00ff66;
+    font-family:"Courier New", monospace;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.scanlines{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(0,255,102,0.04),
+        rgba(0,255,102,0.04) 1px,
+        transparent 2px,
+        transparent 6px
+    );
+}
+
+.glow{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    box-shadow: inset 0 0 120px rgba(0,255,102,0.08);
+}
+
+.container{
+    width:min(900px,95%);
+    height:80vh;
+    display:flex;
+    flex-direction:column;
+}
+
+.header{
+    text-align:center;
+    margin-bottom:10px;
+    opacity:0.85;
+    text-shadow:0 0 8px rgba(0,255,102,0.25);
+}
+
+#terminal{
+    flex:1;
+    overflow-y:auto;
+    border:1px solid rgba(0,255,102,0.25);
+    padding:12px;
+    box-shadow:0 0 20px rgba(0,255,102,0.12);
+}
+
+.line{
+    margin:2px 0;
+    white-space:pre-wrap;
+}
+
+.result{
+    margin:8px 0;
+    padding:6px;
+    border-left:2px solid rgba(0,255,102,0.5);
+    cursor:pointer;
+}
+
+.result:hover{
+    background:rgba(0,255,102,0.08);
+}
+
+.title{
+    font-weight:bold;
+}
+
+.url{
+    font-size:12px;
+    opacity:0.7;
+}
+
+.input-line{
+    display:flex;
+    margin-top:10px;
+}
+
+.prompt{
+    margin-right:8px;
+}
+
+input{
+    flex:1;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:#00ff66;
+    font-family:inherit;
+    font-size:16px;
+}
+
+.footer{
+    margin-top:8px;
+    font-size:12px;
+    opacity:0.6;
+    text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="scanlines"></div>
+<div class="glow"></div>
+
+<div class="container">
+
+<div class="header">
+TERMINAL SEARCH // LIVE ENGINE INTERFACE
+</div>
+
+<div id="terminal"></div>
+
+<div class="input-line">
+    <div class="prompt">&gt;</div>
+    <input id="cmd" autocomplete="off" autofocus>
+</div>
+
+<div class="footer">
+engines: brave | duckduckgo | startpage
+</div>
+
+</div>
+
+<script>
+const terminal = document.getElementById("terminal");
+const input = document.getElementById("cmd");
+
+let engine = "brave";
+
+/* REAL SEARCH ENGINES (direct result pages) */
+const engines = {
+    brave: (q) => `https://search.brave.com/search?q=${encodeURIComponent(q)}`,
+    duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
+    startpage: (q) => `https://www.startpage.com/sp/search?query=${encodeURIComponent(q)}`
+};
+
+function print(text){
+    const div = document.createElement("div");
+    div.className = "line";
+    div.textContent = text;
+    terminal.appendChild(div);
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+/* REAL RESULTS SIMULATION BUT USING LIVE LINKS */
+function showResults(query){
+    print("> engine: " + engine);
+    print("> scanning index...");
+    print("> query: " + query);
+    print("");
+
+    const baseUrl = engines[engine](query);
+
+    // Generate clickable "real search results" that lead to actual engine results
+    const results = Array.from({length: 6}).map((_,i)=>({
+        title: `${query} — result ${i+1}`,
+        url: baseUrl + (engine === "duckduckgo" ? `&ia=web` : "")
+    }));
+
+    results.forEach(r=>{
+        const div = document.createElement("div");
+        div.className = "result";
+
+        div.innerHTML = `
+            <div class="title">${r.title}</div>
+            <div class="url">${r.url}</div>
+        `;
+
+        div.onclick = () => window.open(r.url, "_blank");
+
+        terminal.appendChild(div);
+    });
+
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+function help(){
+    print("COMMANDS:");
+    print("  search <query>");
+    print("  engine <brave|duckduckgo|startpage>");
+    print("  clear");
+    print("  help");
+}
+
+input.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){
+        const value = input.value.trim();
+        print("> " + value);
+
+        const parts = value.split(" ");
+        const cmd = parts[0].toLowerCase();
+        const args = parts.slice(1).join(" ");
+
+        if(cmd === "search"){
+            if(args) showResults(args);
+            else print("ERROR: missing query");
+        }
+
+        else if(cmd === "engine"){
+            if(engines[args]){
+                engine = args;
+                print("ENGINE SET TO: " + engine);
+            } else {
+                print("UNKNOWN ENGINE");
+            }
+        }
+
+        else if(cmd === "clear"){
+            terminal.innerHTML = "";
+        }
+
+        else if(cmd === "help"){
+            help();
+        }
+
+        else{
+            print("UNKNOWN COMMAND");
+        }
+
+        input.value = "";
+    }
+});
+
+print("Terminal Search online.");
+print("Type 'help'");
+</script>
+
+</body>
+</html>
